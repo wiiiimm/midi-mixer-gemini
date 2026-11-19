@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full antialiased">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>midi-mixer — Vocal MIDI Rehearsal &amp; Sight-Singing Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="h-full overflow-hidden flex flex-col bg-slate-950 text-slate-100">
+
+  <!-- Drag & Drop Global Overlay -->
+  <div id="dropOverlay" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm border-4 border-dashed border-sky-400 m-3 rounded-2xl flex flex-col items-center justify-center pointer-events-none">
+    <div class="w-16 h-16 rounded-2xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center mb-4 text-sky-300">
+      <svg class="w-9 h-9" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/></svg>
+    </div>
+    <p class="text-xl font-semibold text-white">Drop MIDI Files (.mid / .midi) to Add to Sidebar</p>
+    <p class="text-sm text-slate-300 mt-1">100% browser-local processing · Zero cloud upload</p>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm"></div>
+
+  <!-- Mobile Sidebar Backdrop -->
+  <div id="sidebarBackdrop" class="hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-xs lg:hidden"></div>
+
+  <!-- Main Studio Shell -->
+  <div class="flex-1 flex min-h-0 overflow-hidden relative">
+
+    <!-- LEFT SIDEBAR: MIDI File Library -->
+    <aside id="librarySidebar" class="fixed lg:static inset-y-0 left-0 z-40 w-72 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 transition-transform duration-200 -translate-x-full lg:translate-x-0">
+      <!-- Brand Header -->
+      <div class="px-4 py-3.5 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-900/30">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"/></svg>
+          </div>
+          <div>
+            <h1 class="text-sm font-bold tracking-tight text-white leading-none">midi-mixer</h1>
+            <p class="text-[11px] text-slate-400 mt-0.5">Vocal MIDI Rehearsal Studio</p>
+          </div>
+        </div>
+        <button id="btnCloseSidebar" type="button" class="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800" title="Close Library">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Local File & Folder Loaders -->
+      <div class="p-3 border-b border-slate-800/80 space-y-2">
+        <input id="midiFileInput" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" multiple class="hidden" />
+        <input id="midiFolderInput" type="file" webkitdirectory directory multiple class="hidden" />
+        <div class="flex items-center gap-1.5">
+          <button id="btnUploadMidi" type="button" class="flex-1 py-2 px-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 active:bg-sky-600 text-slate-950 font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors" title="Pick one or more .mid/.midi files from your computer">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            <span>Load MIDI Files (.mid)</span>
+          </button>
+          <button id="btnUploadFolder" type="button" class="py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-1 border border-slate-700 transition-colors shrink-0" title="Load all .mid files from a local folder">
+            <span>Folder</span>
+          </button>
+        </div>
+        <div id="dropZoneBox" class="rounded-lg border border-dashed border-slate-700 bg-slate-950/50 px-2.5 py-1.5 text-center space-y-0.5">
+          <p class="text-[11px] text-slate-300">Drag &amp; drop <span class="text-sky-300 font-medium">.mid</span> files anywhere</p>
+          <div class="flex items-center justify-center gap-1.5 text-[10px] text-emerald-400/90 font-medium">
+            <span>100% Local in Browser · No Cloud</span>
+            <button id="btnClearLocalCache" type="button" class="hidden underline text-slate-400 hover:text-rose-300 ml-1" title="Clear MIDI files cached locally in this browser">Clear Saved</button>
+          </div>
+        </div>
+        <div class="relative">
+          <svg class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg>
+          <input id="midiSearchInput" type="text" placeholder="Filter songs..." class="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500" />
+        </div>
+      </div>
+
+      <!-- Playlist Header -->
+      <div class="px-3.5 py-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <span>Rehearsal Playlist</span>
+        <span id="playlistCountBadge" class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">0</span>
+      </div>
+
+      <!-- MIDI File List -->
+      <div id="midiFileList" class="flex-1 overflow-y-auto px-2.5 pb-3 space-y-1"></div>
+
+      <!-- Keyboard Shortcuts Footer -->
+      <div class="p-3 border-t border-slate-800 bg-slate-950/60 text-[11px] text-slate-400 space-y-1">
+        <div class="flex items-center justify-between">
+          <span>Play / Pause</span>
+          <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">Space</kbd>
+        </div>
+        <div class="flex items-center justify-between">
+          <span>Play Piano Keys</span>
+          <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 font-mono text-[10px]">A–' / W–P</kbd>
+        </div>
+        <div class="flex items-center justify-between">
+          <span>Piano Octave - / +</span>
+          <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-sky-300 font-mono text-[10px]">Z / X</kbd>
+        </div>
+        <div class="flex items-center justify-between">
+          <span>Start Cue / Loop</span>
+          <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">R / Shift+L</kbd>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT STUDIO WORKSPACE -->
+    <main class="flex-1 flex flex-col min-w-0 min-h-0 bg-slate-950">
+
+      <!-- TOP TRANSPORT, TEMPO, START CUE & LOOP BAR -->
+      <header class="bg-slate-900 border-b border-slate-800 px-3 py-2.5 flex flex-wrap items-center gap-2.5 justify-between shrink-0">
+
+        <!-- Left: Sidebar Toggle + Transport + Position Readout -->
+        <div class="flex items-center gap-2.5 min-w-0">
+          <button id="btnToggleSidebar" type="button" class="lg:hidden p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 shrink-0" title="Open MIDI File List">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+
+          <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 shrink-0">
+            <button id="btnReturnStart" type="button" class="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors" title="Jump to Start Cue (R)">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1zm11.293 1.293a1 1 0 011.414 0v9.414a1 1 0 01-1.414 0L9.586 10l5.707-4.707z"/></svg>
+            </button>
+            <button id="btnPlayPause" type="button" class="px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors" title="Play / Pause (Space)">
+              <svg id="iconPlay" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 3.84A1.5 1.5 0 004 5.11v9.78a1.5 1.5 0 002.3 1.27l7.34-4.89a1.5 1.5 0 000-2.54L6.3 3.84z"/></svg>
+              <svg id="iconPause" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M5.75 4a.75.75 0 00-.75.75v10.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V4.75A.75.75 0 007.25 4h-1.5zm7 0a.75.75 0 00-.75.75v10.5c0 .414.336.75.75.75h1.5a.75.75 0 00.75-.75V4.75a.75.75 0 00-.75-.75h-1.5z"/></svg>
+              <span id="playBtnLabel">Play</span>
+            </button>
+            <button id="btnStop" type="button" class="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors" title="Stop &amp; Reset to Start Cue">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><rect x="5" y="5" width="10" height="10" rx="1.5"/></svg>
+            </button>
+            <button id="btnMetronome" type="button" class="px-2 py-1.5 rounded-lg text-[11px] font-medium text-slate-400 hover:text-white hover:bg-slate-800 flex items-center gap-1 transition-colors" title="Toggle Beat Metronome Click">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3l6 18H6L12 3zm0 12l4-8"/></svg>
+              <span class="hidden sm:inline">Click</span>
+            </button>
+          </div>
+
+          <div class="min-w-0 hidden xl:block">
+            <div id="activeSongTitle" class="text-xs font-semibold text-white truncate max-w-[200px]">Loading...</div>
+            <div id="activeSongMeta" class="text-[11px] text-slate-400 truncate">4/4 · C Maj</div>
+          </div>
+
+          <div class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 flex items-center gap-3 shrink-0">
+            <div>
+              <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Bar : Beat</div>
+              <div id="measureBeatReadout" class="text-xs font-mono font-bold text-sky-300">M 01 : 1</div>
+            </div>
+            <div class="h-6 w-px bg-slate-800"></div>
+            <div>
+              <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Time</div>
+              <div id="timeReadout" class="text-xs font-mono text-slate-200">0:00.0 / 0:00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center: Tempo Speed Control -->
+        <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5">
+          <div class="flex flex-col">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] uppercase tracking-wider font-semibold text-amber-400">Tempo</span>
+              <span id="tempoReadout" class="text-xs font-mono font-bold text-white">100 BPM (100%)</span>
+            </div>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <button id="btnTempoDown" type="button" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-slate-200" title="Slow down 5%">-</button>
+              <input id="tempoSlider" type="range" min="25" max="200" step="5" value="100" class="studio-slider tempo-slider w-24 sm:w-28" />
+              <button id="btnTempoUp" type="button" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-slate-200" title="Speed up 5%">+</button>
+            </div>
+          </div>
+          <div id="tempoPresetsGroup" class="hidden md:flex items-center gap-1 pl-1 border-l border-slate-800">
+            <button type="button" data-tempo-preset="50" class="px-1.5 py-1 rounded text-[11px] font-medium bg-slate-900 hover:bg-slate-800 text-slate-300">0.5x</button>
+            <button type="button" data-tempo-preset="75" class="px-1.5 py-1 rounded text-[11px] font-medium bg-slate-900 hover:bg-slate-800 text-slate-300">0.75x</button>
+            <button type="button" data-tempo-preset="100" class="px-1.5 py-1 rounded text-[11px] font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40">1x</button>
+            <button type="button" data-tempo-preset="125" class="px-1.5 py-1 rounded text-[11px] font-medium bg-slate-900 hover:bg-slate-800 text-slate-300">1.25x</button>
+            <button type="button" data-tempo-preset="150" class="px-1.5 py-1 rounded text-[11px] font-medium bg-slate-900 hover:bg-slate-800 text-slate-300">1.5x</button>
+          </div>
+        </div>
+
+        <!-- Right: Start Bar, A-B Loop & Master Vol -->
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5">
+            <span class="text-[10px] uppercase tracking-wider font-semibold text-orange-400">Start Bar</span>
+            <input id="startMeasureInput" type="number" min="1" max="999" value="1" class="w-12 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-xs font-mono text-center text-white focus:outline-none focus:border-orange-400" title="Measure to start singing from" />
+            <button id="btnSetStartAtPlayhead" type="button" class="px-2 py-1 rounded-lg bg-orange-500/15 hover:bg-orange-500/25 border border-orange-500/30 text-orange-300 text-[11px] font-medium transition-colors" title="Pin Start Cue at current playhead position">
+              Cue Here
+            </button>
+          </div>
+
+          <div class="flex items-center gap-1.5 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5">
+            <button id="btnLoopToggle" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1 transition-colors" title="Toggle A-B Loop Repeat (Shift+L)">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              <span>Loop</span>
+            </button>
+            <button id="btnSetLoopA" type="button" class="px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-cyan-300" title="Set Loop Start (A) at Playhead">A</button>
+            <input id="loopStartMeasure" type="number" min="1" max="999" value="1" class="w-11 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-xs font-mono text-center text-cyan-200 focus:outline-none focus:border-cyan-400" title="Loop Start Measure (A)" />
+            <span class="text-slate-500 text-xs">→</span>
+            <input id="loopEndMeasure" type="number" min="2" max="999" value="5" class="w-11 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-xs font-mono text-center text-cyan-200 focus:outline-none focus:border-cyan-400" title="Loop End Measure (B)" />
+            <button id="btnSetLoopB" type="button" class="px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] font-mono text-cyan-300" title="Set Loop End (B) at Playhead">B</button>
+            <button id="btnLoop4Bars" type="button" class="px-2 py-1 rounded bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-[11px] font-medium" title="Loop 4 measures starting from current bar">4 Bars</button>
+          </div>
+
+          <div class="hidden 2xl:flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5">
+            <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Master</span>
+            <input id="masterVolumeSlider" type="range" min="0" max="125" value="95" class="studio-slider vol-slider w-20" />
+            <span id="masterVolReadout" class="text-[11px] font-mono text-slate-300 w-8 text-right">95%</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- SUB-TOOLBAR: GROUP MUTE / SOLO, BATCH SELECTION & STAFF VIEW CONTROLS -->
+      <section class="bg-slate-900/75 border-b border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
+
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Group Mute / Solo:</span>
+          <div id="groupControlsBar" class="flex flex-wrap items-center gap-1.5"></div>
+
+          <div class="h-4 w-px bg-slate-800 mx-0.5 hidden sm:block"></div>
+
+          <div class="flex items-center gap-1">
+            <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer px-2 py-1 rounded-lg hover:bg-slate-800">
+              <input id="chkSelectAllTracks" type="checkbox" class="rounded border-slate-600 bg-slate-900 text-sky-500 focus:ring-0" />
+              <span class="text-[11px]">Checked (<span id="selectedCountBadge">0</span>):</span>
+            </label>
+            <button id="btnMuteChecked" type="button" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-rose-500/25 hover:text-rose-200 text-slate-300 text-[11px] font-medium transition-colors">Mute Group</button>
+            <button id="btnUnmuteChecked" type="button" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition-colors">Unmute Group</button>
+            <button id="btnSoloChecked" type="button" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-amber-500/25 hover:text-amber-200 text-slate-300 text-[11px] font-medium transition-colors">Solo Group</button>
+            <button id="btnResetMix" type="button" class="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-sky-300 text-[11px] font-medium transition-colors">All On</button>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <div id="rulerModeGroup" class="hidden sm:flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5 text-[11px]">
+            <span class="px-2 text-slate-500 font-medium">Ruler Click:</span>
+            <button type="button" data-ruler-mode="seek" class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 font-medium">Seek</button>
+            <button type="button" data-ruler-mode="start" class="px-2 py-0.5 rounded text-slate-400 hover:text-orange-300">Set Start</button>
+            <button type="button" data-ruler-mode="loopA" class="px-2 py-0.5 rounded text-slate-400 hover:text-cyan-300">Loop A</button>
+            <button type="button" data-ruler-mode="loopB" class="px-2 py-0.5 rounded text-slate-400 hover:text-cyan-300">Loop B</button>
+          </div>
+
+          <select id="pitchLabelMode" class="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-sky-500" title="Show lyrics, note names, or solfege under staff notes">
+            <option value="lyrics_notes">Staff Text: Lyrics + Pitch (C4)</option>
+            <option value="solfege">Staff Text: Movable Solfege</option>
+            <option value="lyrics">Staff Text: MIDI Lyrics Only</option>
+            <option value="off">Staff Text: Clean Engraving</option>
+          </select>
+
+          <div class="flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg px-1.5 py-0.5">
+            <button id="btnZoomOut" type="button" class="px-1.5 py-0.5 text-xs text-slate-300 hover:text-white" title="Zoom Out Staff">-</button>
+            <span id="zoomReadout" class="text-[11px] font-mono text-slate-400 w-10 text-center">100%</span>
+            <button id="btnZoomIn" type="button" class="px-1.5 py-0.5 text-xs text-slate-300 hover:text-white" title="Zoom In Staff">+</button>
+          </div>
+
+          <button id="btnAutoScroll" type="button" class="px-2.5 py-1 rounded-lg bg-sky-500/20 border border-sky-500/40 text-sky-300 text-[11px] font-medium transition-colors" title="Keep playhead in view during playback">
+            Follow
+          </button>
+
+          <button id="btnCompactMixer" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition-colors" title="Toggle compact mixer width">
+            Wide Staff
+          </button>
+
+          <button id="btnToggleKeyboard" type="button" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[11px] font-semibold flex items-center gap-1 transition-colors" title="Show or hide the playable Sound-Check Piano dock">
+            <span>🎹 Keys</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- MAIN SYNCHRONIZED MIXER + MULTI-TRACK MUSICAL STAFF WORKSPACE -->
+      <div class="flex-1 flex min-h-0 overflow-hidden relative">
+
+        <!-- LEFT COLUMN: PER-TRACK MIXER, SOLO/MUTE, INSTRUMENT & VOLUME -->
+        <div id="mixerColumn" class="w-72 sm:w-80 shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col min-h-0 transition-all duration-150">
+          <div class="h-[44px] px-3 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between shrink-0">
+            <span id="mixerHeaderTitle" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Tracks · Instrument · Vol</span>
+            <span id="activeTrackCountLabel" class="text-[11px] text-slate-500">0 tracks</span>
+          </div>
+
+          <div id="trackMixerList" class="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar"></div>
+
+          <div class="h-[14px] bg-slate-950 border-t border-slate-800 shrink-0"></div>
+        </div>
+
+        <!-- RIGHT COLUMN: SYNCHRONIZED MEASURE RULER + MULTI-TRACK ENGRAVED STAVES -->
+        <div id="scoreViewport" class="flex-1 flex flex-col min-w-0 min-h-0 bg-slate-950 relative">
+          <div class="h-[44px] w-full border-b border-slate-800 bg-slate-900 relative shrink-0">
+            <canvas id="rulerCanvas" class="absolute inset-0 w-full h-full block cursor-pointer"></canvas>
+          </div>
+
+          <div id="staffCanvasContainer" class="flex-1 w-full min-h-0 relative overflow-hidden">
+            <canvas id="staffCanvas" class="absolute inset-0 w-full h-full block"></canvas>
+            <div id="staffNoteTooltip" class="hidden pointer-events-none absolute z-20 px-2 py-1 rounded-md bg-slate-900/95 border border-slate-700 text-[11px] text-slate-100 shadow-lg whitespace-nowrap"></div>
+          </div>
+
+          <div id="scoreHScroll" class="h-[14px] w-full overflow-x-auto overflow-y-hidden bg-slate-950 border-t border-slate-800 shrink-0">
+            <div id="scoreHScrollInner" class="h-px"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- BOTTOM DOCK: INTERACTIVE SOUND-CHECK & TUNE VIRTUAL PIANO KEYBOARD -->
+      <section id="pianoKeyboardDock" class="bg-slate-900 border-t border-slate-800 shrink-0 flex flex-col select-none">
+        <div class="px-3 py-1.5 bg-slate-950/85 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-200">Sound Check Piano</span>
+            </div>
+
+            <div id="pianoNoteReadout" class="px-2.5 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[11px] font-mono font-semibold text-emerald-300 min-w-[148px] text-center">
+              Click or type A–L to play
+            </div>
+
+            <div class="flex items-center gap-1">
+              <button id="btnRefA440" type="button" class="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-sky-500/25 hover:text-sky-200 border border-slate-700 text-[11px] font-medium text-slate-300 transition-colors" title="Play standard A4 = 440 Hz tuning reference">
+                A440 Fork
+              </button>
+              <button id="btnRefKeyChord" type="button" class="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-indigo-500/25 hover:text-indigo-200 border border-slate-700 text-[11px] font-medium text-slate-300 transition-colors" title="Play tonic triad chord of current song's key">
+                Song Key Chord
+              </button>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="flex items-center gap-1">
+              <span class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold hidden sm:inline">Tone</span>
+              <select id="pianoInstSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-0.5 text-[11px] text-slate-200 focus:outline-none focus:border-emerald-400" title="Choose Sound-Check Keyboard Instrument">
+                <option value="grand_piano">Concert Grand Piano</option>
+                <option value="pitch_guide">Vocal Pitch Guide (Clear)</option>
+                <option value="choir_aahs">Choir Aahs (Vocal)</option>
+                <option value="voice_oohs">Voice Oohs (Warm)</option>
+                <option value="epiano">Electric Piano (Rhodes)</option>
+                <option value="clarinet">Clarinet (Rehearsal Lead)</option>
+                <option value="flute">Concert Flute</option>
+                <option value="organ">Cathedral Pipe Organ</option>
+                <option value="strings">Warm String Ensemble</option>
+                <option value="guitar">Acoustic Nylon Guitar</option>
+                <option value="brass">Warm Brass Section</option>
+                <option value="bass">Acoustic Bass</option>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg px-1.5 py-0.5">
+              <button id="btnOctaveDown" type="button" class="px-1.5 py-0.5 rounded hover:bg-slate-800 text-[11px] font-mono text-slate-300 hover:text-white" title="Shift Computer Keyboard Octave Down (Z)">-Z</button>
+              <span id="pianoOctaveReadout" class="text-[11px] font-mono text-sky-300 px-1">Keys: C4–F5</span>
+              <button id="btnOctaveUp" type="button" class="px-1.5 py-0.5 rounded hover:bg-slate-800 text-[11px] font-mono text-slate-300 hover:text-white" title="Shift Computer Keyboard Octave Up (X)">+X</button>
+            </div>
+
+            <button id="btnPianoSustain" type="button" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition-colors" title="Hold / Latch played notes hands-free">
+              Sustain
+            </button>
+            <button id="btnPianoPanic" type="button" class="hidden px-2 py-0.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-[11px] font-medium transition-colors" title="Silence held sustained notes">
+              Silence
+            </button>
+
+            <button id="btnQwertyToggle" type="button" class="px-2 py-0.5 rounded-lg bg-sky-500/20 border border-sky-500/40 text-sky-300 text-[11px] font-medium transition-colors" title="Toggle computer keyboard typing">
+              QWERTY On
+            </button>
+
+            <div class="hidden md:flex items-center gap-1.5 bg-slate-900 border border-slate-800 rounded-lg px-2 py-0.5">
+              <span class="text-[10px] uppercase text-slate-400 font-semibold">Vol</span>
+              <input id="pianoVolSlider" type="range" min="0" max="150" value="105" class="studio-slider vol-slider w-16" title="Sound-Check Keyboard Volume" />
+              <span id="pianoVolReadout" class="text-[10px] font-mono text-slate-300 w-8 text-right">105%</span>
+            </div>
+
+            <button id="btnCollapseKeyboard" type="button" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white" title="Minimize Virtual Keyboard">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="w-full overflow-x-auto bg-slate-950 px-2 pt-1 pb-2">
+          <div id="pianoKeybed" class="relative h-[108px] sm:h-[118px] min-w-[660px] w-full max-w-[1360px] mx-auto flex select-none"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/midi-parser.js"></script>
+  <script src="js/audio-engine.js"></script>
+  <script src="js/score-renderer.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
